@@ -1,5 +1,4 @@
 # goto: A Terminal Teleporter
-# goto: A Terminal Teleporter
 A lightweight command-line tool for setting quick navigation markers in your filesystem: rewritten in Go.
 
 Jump instantly between your favorite directories using a simple command:
