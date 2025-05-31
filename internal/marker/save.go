@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func SaveMarkers(markers map[string]string) {
+func SaveMarkers(markers map[string]string) error {
 	pairs := make([]string, 0, len(markers))
 
 	fmt.Println(len(markers))
@@ -15,15 +15,11 @@ func SaveMarkers(markers map[string]string) {
 		pairs = append(pairs, joined)
 	}
 
-	out := strings.Join(pairs, "\n")
-	fmt.Println("out:")
-	fmt.Println(out)
-	fmt.Println("end out")
+	data := []byte(strings.Join(pairs, "\n"))
 
-	data := []byte(out)
-	err := os.WriteFile(".markers", data, 0644)
-	if err != nil {
-		fmt.Println("Error saving file:", err)
-		os.Exit(1)
-	}
+	home, _ := os.UserHomeDir()
+	configPath := fmt.Sprintf("%s/.markers", home)
+	err := os.WriteFile(configPath, data, 0644)
+
+	return err
 }

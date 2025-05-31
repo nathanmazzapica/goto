@@ -6,12 +6,15 @@ import (
 	"os"
 )
 
-func LoadMarkers() map[string]string {
+func LoadMarkers() (map[string]string, error) {
 	markers := make(map[string]string)
-	dat, err := os.ReadFile(".markers")
+
+	home, _ := os.UserHomeDir()
+	configPath := fmt.Sprintf("%s/.markers", home)
+
+	dat, err := os.ReadFile(configPath)
 	if err != nil {
-		fmt.Println("Error reading marker file:", err)
-		os.Exit(1)
+		return markers, err
 	}
 
 	pairs := strings.Split(string(dat), "\n")
@@ -23,13 +26,12 @@ func LoadMarkers() map[string]string {
 
 		split := strings.Split(pair, ":")
 		if len(split) != 2 {
-			// TODO: handle
+			// TODO: handle better?
 			fmt.Printf("error splitting pair: %s\n", split)
-			os.Exit(1)
+			return markers, fmt.Errorf("Invalid pair: { %s }", split)
 		}
 		markers[split[0]] = split[1]
-		fmt.Printf("Split pair: %v\n", pair)
 	}
 
-	return markers
+	return markers, nil
 }
