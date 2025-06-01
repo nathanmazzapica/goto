@@ -28,7 +28,7 @@ func LoadMarkers() (map[string]string, error) {
 		if !found {
 			// TODO: handle better?
 			fmt.Printf("error splitting pair: %s\n", pair)
-			return markers, fmt.Errorf("Invalid pair: { %s: %s }", key, value)
+			return markers, fmt.Errorf("Invalid pair: { %s }", pair)
 		}
 		markers[key] = value
 	}
