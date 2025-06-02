@@ -10,21 +10,63 @@ tp <marker_name>
 ```
 
 ## Features
-Right now, nothing! This tool is a WIP rewrite of [Terminal Teleporter](github.com/nathanmazzapica/terminal-teleporter), originally written in Python.
-
-I am choosing to rewrite this project in Go because I prefer having an executable binary over a Python script, and because I like writing Go.
+- Save and name directory markers
+- Instantly jump to saved locations
 
 ## Demo
-
 WIP
 
 ## Installation
 
-WIP
+### 1. Clone the Repo
+```bash
+git clone https://github.com/nathanmazzapica/goto.git
+```
+
+### 2. Install the Go Binary
+```bash
+go install goto/cmd/goto.go
+```
+>*ℹ️ This is only temporary while I figure out how GitHub releases work*
+
+### 3. Add the Shell Function
+##### 1. Add the following to your `.bashrc` or `.zshrc`:
+```bash
+function tp() {
+    local dir
+    case $1 in 
+        -d|--delete|-a|--add|-l|--list)
+            goto $@
+            ;;
+        *)
+            dir=$(goto $1)
+            if [ -d $dir ]; then
+                cd $dir
+            else
+                echo $dir
+            fi
+            ;;
+    esac
+}```
+
+>*ℹ️ You can name the function anything you'd like to customize your experience*
+
+##### 2. Source your rc file
+```bash
+source ~/.zsrch
+# or
+source ~/.bashrc
+```
 
 ## Usage
 
-WIP
+| Command                        | Description                         |
+|-------------------------------|-------------------------------------|
+| `tp --add <name>` or `-a`     | Adds a marker for the current dir   |
+| `tp <name>`                   | Teleports to the saved directory    |
+| `tp --list` or `-l`           | Lists all saved markers             |
+| `tp --delete <name>` or `-d`  | Deletes the saved marker            |
+
 
 ## Example
 
@@ -37,7 +79,7 @@ tp proj     # instantly jumps back to ~/github.com/mysuperlongname/my-project-wi
 ```
 
 ## Future Plans
-- Fuzzy Matching
+- Fuzzy Matching (?)
 
 ## Contributions Welcome
 If you have any suggestions or would like to help a young man build something cool, feel free to open an issue or PR.
