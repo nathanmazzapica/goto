@@ -47,7 +47,8 @@ function tp() {
             fi
             ;;
     esac
-}```
+}
+```
 
 >*ℹ️ You can name the function anything you'd like to customize your experience*
 
