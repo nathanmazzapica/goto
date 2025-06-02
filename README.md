@@ -27,7 +27,7 @@ git clone https://github.com/nathanmazzapica/goto.git
 ```bash
 go install goto/cmd/goto.go
 ```
->*ℹ️ This is only temporary while I figure out how GitHub releases work*
+>*This is only temporary while I figure out how GitHub releases work*
 
 ### 3. Add the Shell Function
 ##### 1. Add the following to your `.bashrc` or `.zshrc`:
@@ -50,7 +50,7 @@ function tp() {
 }
 ```
 
->*ℹ️ You can name the function anything you'd like to customize your experience*
+>*You can name the function anything you'd like to customize your experience*
 
 ##### 2. Source your rc file
 ```bash
