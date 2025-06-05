@@ -2,8 +2,8 @@ package marker
 
 import (
 	"fmt"
-	"strings"
 	"os"
+	"strings"
 )
 
 func LoadMarkers() (map[string]string, error) {
@@ -24,13 +24,13 @@ func LoadMarkers() (map[string]string, error) {
 			continue
 		}
 
-		split := strings.Split(pair, ":")
-		if len(split) != 2 {
+		key, value, found := strings.Cut(pair, ":")
+		if !found {
 			// TODO: handle better?
-			fmt.Printf("error splitting pair: %s\n", split)
-			return markers, fmt.Errorf("Invalid pair: { %s }", split)
+			fmt.Printf("error splitting pair: %s\n", pair)
+			return markers, fmt.Errorf("Invalid pair: { %s }", pair)
 		}
-		markers[split[0]] = split[1]
+		markers[key] = value
 	}
 
 	return markers, nil
