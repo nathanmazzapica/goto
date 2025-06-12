@@ -79,6 +79,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	fmt.Println("dne")
+	fmt.Printf("Marker <%s> does not exist!\nUse tp -l to list available markers\n", target)
 	os.Exit(1)
 }
