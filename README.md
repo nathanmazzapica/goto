@@ -78,6 +78,9 @@ tp --add proj
 
 cd ~
 tp proj     # instantly jumps back to ~/github.com/mysuperlongname/my-project-with-a-long-name
+
+tp someOtherMarker
+tp -r       # instantly returns to the previous direction (in this case home)
 ```
 
 ## Future Plans
