@@ -67,6 +67,7 @@ source ~/.bashrc
 | `tp <name>`                   | Teleports to the saved directory    |
 | `tp --list` or `-l`           | Lists all saved markers             |
 | `tp --delete <name>` or `-d`  | Deletes the saved marker            |
+| `tp --recall` or `-r`         | Returns to the previous directory            |
 
 
 ## Example
