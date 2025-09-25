@@ -13,6 +13,26 @@ var deleting bool
 var listing bool
 var recall bool
 
+func setRecall(markers map[string]string) error {
+	curDir, _ := os.Getwd()
+
+	err := marker.Delete("previous", markers)
+	if err != nil {
+		return err
+	}
+
+	markers, err = marker.Add("previous", curDir, markers)
+	if err != nil { 
+		return err
+	}
+
+	err = marker.SaveMarkers(markers)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 
 	flag.BoolVar(&adding, "add", false, "Adds a new marker with the provided name at the current working directory")
@@ -80,6 +100,11 @@ func main() {
 	if recall {
 		if t, ok := markers["previous"]; ok {
 			destDir := fmt.Sprintf("%s",t)
+			err := setRecall(markers)
+			if err != nil {
+				fmt.Println("error updating recall dest:", err)
+				os.Exit(1)
+			}
 			fmt.Println(destDir)
 			os.Exit(0)
 		}
@@ -89,6 +114,11 @@ func main() {
 
 	if t, ok := markers[target]; ok {
 		destDir := fmt.Sprintf("%s", t)
+		err := setRecall(markers)
+		if err != nil {
+			fmt.Println("error updating recall dest:", err)
+			os.Exit(1)
+		}
 		fmt.Println(destDir)
 		os.Exit(0)
 	}

@@ -9,7 +9,6 @@ import (
 func SaveMarkers(markers map[string]string) error {
 	pairs := make([]string, 0, len(markers))
 
-	fmt.Println(len(markers))
 	for key, value := range markers {
 		joined := fmt.Sprintf("%s:%s", key, value)
 		pairs = append(pairs, joined)
