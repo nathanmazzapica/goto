@@ -38,7 +38,7 @@ function tp() {
         -d|--delete|-a|--add|-l|--list)
             goto $@
             ;;
-        *)
+        -r|--recall|*)
             dir=$(goto $1)
             if [ -d $dir ]; then
                 cd $dir
