@@ -52,13 +52,26 @@ func main() {
 	markers, err := marker.LoadMarkers()
 
 	if err != nil {
-		fmt.Println("Error loading markers:", err)
+		if os.IsNotExist(err) && !adding {
+			fmt.Println("No markers exist! Add one with the -a flag!")
+			err = marker.SaveMarkers(markers)
+			if err != nil {
+				fmt.Printf("Failed to create markers file: %v\n", err)
+			}
+			os.Exit(1)
+		}
+		fmt.Printf("Error loading markers: %v\n", err)
 		os.Exit(1)
 	}
 
 	target := os.Args[len(os.Args) - 1]
 
 	if listing {
+		if len(markers) == 0 {
+			fmt.Println("No markers exist! Add one with the -a flag!")
+			os.Exit(0)
+		}
+
 		fmt.Printf("%-8s DESTINATION\n\n", "MARKER")
 		for key, val := range markers {
 			fmt.Printf("%-8s %s\n", key, val)
