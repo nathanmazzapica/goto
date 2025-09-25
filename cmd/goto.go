@@ -11,6 +11,7 @@ var target string
 var adding bool
 var deleting bool
 var listing bool
+var recall bool
 
 func main() {
 
@@ -22,6 +23,9 @@ func main() {
 
 	flag.BoolVar(&listing, "list", false, "Lists the available markers")
 	flag.BoolVar(&listing, "l", false, "Lists the available markers")
+
+	flag.BoolVar(&recall, "recall", false, "Return to the previous directory")
+	flag.BoolVar(&recall, "r", false, "Return to the previous directory")
 	flag.Parse()
 
 
@@ -71,6 +75,16 @@ func main() {
 		
 		fmt.Printf("Added marker <%s> at %s\n", target, dir)
 		os.Exit(0)
+	}
+
+	if recall {
+		if t, ok := markers["previous"]; ok {
+			destDir := fmt.Sprintf("%s",t)
+			fmt.Println(destDir)
+			os.Exit(0)
+		}
+		fmt.Println("No recall position")
+		os.Exit(1)
 	}
 
 	if t, ok := markers[target]; ok {
