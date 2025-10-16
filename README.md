@@ -84,7 +84,7 @@ tp -r       # instantly returns to the previous directory (in this case home)
 ```
 
 ## Future Plans
-- Fuzzy Matching (?)
+- Ability to teleport files
 
 ## Contributions Welcome
 If you have any suggestions or would like to help a young man build something cool, feel free to open an issue or PR.
