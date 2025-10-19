@@ -38,6 +38,10 @@ function tp() {
         -d|--delete|-a|--add|-l|--list)
             goto $@
             ;;
+        -p|--print)
+            dir=$(goto $2)
+            echo $dir
+            ;;
         -r|--recall|*)
             dir=$(goto $1)
             if [ -d $dir ]; then
@@ -63,15 +67,19 @@ source ~/.bashrc
 
 | Command                        | Description                         |
 |-------------------------------|-------------------------------------|
-| `tp --add <name>` or `-a`     | Adds a marker for the current dir   |
-| `tp <name>`                   | Teleports to the saved directory    |
+| `tp --add <name>` or `-a`     | Adds a marker <name> for the current dir   |
+| `tp <name>`                   | Teleports to the saved directory pointed to by marker <name>    |
 | `tp --list` or `-l`           | Lists all saved markers             |
 | `tp --delete <name>` or `-d`  | Deletes the saved marker            |
 | `tp --recall` or `-r`         | Returns to the previous directory            |
+| `tp --print <name>` or `-p`          | Outputs the directory pointed to by <name>|
 
 
-## Example
+## Examples
 
+Below are some example usages:
+
+### Teleporting & Recalling
 ```bash
 cd ~/github.com/mysuperlongname/my-project-with-a-long-name
 tp --add proj
@@ -83,8 +91,16 @@ tp someOtherMarker
 tp -r       # instantly returns to the previous directory (in this case home)
 ```
 
+### Moving a file
+```bash
+mv file_name $(tp -p proj)
+```
+
+
 ## Future Plans
-- Ability to teleport files
+As of right now this tool does everything I need it to do, but as I run in to more problems I think fit in this problem domain, I'll continue to update it.
 
 ## Contributions Welcome
 If you have any suggestions or would like to help a young man build something cool, feel free to open an issue or PR.
+
+This repository runs a simple `go fmt ./...` and `staticcheck ./...` for every PR as part of a CI workflow. Please run these commands prior to your pull-request to ensure no tests are failed.

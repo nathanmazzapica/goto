@@ -12,6 +12,8 @@ var deleting bool
 var listing bool
 var recall bool
 
+var printing bool
+
 func setRecall(markers map[string]string) error {
 	curDir, _ := os.Getwd()
 
@@ -45,6 +47,10 @@ func main() {
 
 	flag.BoolVar(&recall, "recall", false, "Return to the previous directory")
 	flag.BoolVar(&recall, "r", false, "Return to the previous directory")
+
+
+	flag.BoolVar(&printing, "print", false, "Prints the directory the specified marker points to")
+	flag.BoolVar(&printing, "p", false, "Prints the directory the specified marker points to")
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
