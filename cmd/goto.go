@@ -48,7 +48,6 @@ func main() {
 	flag.BoolVar(&recall, "recall", false, "Return to the previous directory")
 	flag.BoolVar(&recall, "r", false, "Return to the previous directory")
 
-
 	flag.BoolVar(&printing, "print", false, "Prints the directory the specified marker points to")
 	flag.BoolVar(&printing, "p", false, "Prints the directory the specified marker points to")
 	flag.Parse()
