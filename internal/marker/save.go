@@ -2,8 +2,8 @@ package marker
 
 import (
 	"fmt"
-	"strings"
 	"os"
+	"strings"
 )
 
 func SaveMarkers(markers map[string]string) error {

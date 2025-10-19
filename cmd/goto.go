@@ -3,11 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 	"github.com/nathanmazzapica/goto/internal/marker"
+	"os"
 )
 
-var target string
 var adding bool
 var deleting bool
 var listing bool
@@ -22,7 +21,7 @@ func setRecall(markers map[string]string) error {
 	}
 
 	markers, err = marker.Add("previous", curDir, markers)
-	if err != nil { 
+	if err != nil {
 		return err
 	}
 
@@ -48,7 +47,6 @@ func main() {
 	flag.BoolVar(&recall, "r", false, "Return to the previous directory")
 	flag.Parse()
 
-
 	markers, err := marker.LoadMarkers()
 
 	if err != nil {
@@ -64,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	target := os.Args[len(os.Args) - 1]
+	target := os.Args[len(os.Args)-1]
 
 	if listing {
 		if len(markers) == 0 {
@@ -105,14 +103,14 @@ func main() {
 			// TODO: Gracefully handle by restoring from a backup
 			os.Exit(1)
 		}
-		
+
 		fmt.Printf("Added marker <%s> at %s\n", target, dir)
 		os.Exit(0)
 	}
 
 	if recall {
 		if t, ok := markers["previous"]; ok {
-			destDir := fmt.Sprintf("%s",t)
+			destDir := t
 			err := setRecall(markers)
 			if err != nil {
 				fmt.Println("error updating recall dest:", err)
@@ -126,7 +124,7 @@ func main() {
 	}
 
 	if t, ok := markers[target]; ok {
-		destDir := fmt.Sprintf("%s", t)
+		destDir := t
 		err := setRecall(markers)
 		if err != nil {
 			fmt.Println("error updating recall dest:", err)

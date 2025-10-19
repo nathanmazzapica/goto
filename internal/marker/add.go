@@ -8,5 +8,5 @@ func Add(key, path string, markers map[string]string) (map[string]string, error)
 		return markers, nil
 	}
 
-	return markers, fmt.Errorf("Marker <%s> already exists! (Points to %s)", key, markers[key])
+	return markers, fmt.Errorf("marker <%s> already exists! (Points to %s)", key, markers[key])
 }
