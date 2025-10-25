@@ -75,9 +75,9 @@ func main() {
 			os.Exit(0)
 		}
 
-		fmt.Printf("%-8s DESTINATION\n\n", "MARKER")
+		fmt.Printf("%-8s ->DESTINATION\n\n", "MARKER")
 		for key, val := range markers {
-			fmt.Printf("%-8s %s\n", key, val)
+			fmt.Printf("%-8s ->%s\n", key, val)
 		}
 		os.Exit(0)
 	}
