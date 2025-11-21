@@ -23,9 +23,14 @@ WIP
 git clone https://github.com/nathanmazzapica/goto.git
 ```
 
+### 2. CD into the Repo
+```bash
+cd goto
+```
+
 ### 2. Install the Go Binary
 ```bash
-go install goto/cmd/goto.go
+go install ./...
 ```
 >*This is only temporary while I figure out how GitHub releases work*
 
