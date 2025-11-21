@@ -17,17 +17,15 @@ var printing bool
 func setRecall(markers map[string]string) error {
 	curDir, _ := os.Getwd()
 
-	err := marker.Delete("previous", markers)
-	if err != nil {
-		return err
-	}
+	// Errors are ignored here because it is okay if previous marker doesn't exist.
+	// We'll just make it in the marker.Add() call below
+	marker.Delete("previous", markers)
 
-	markers, err = marker.Add("previous", curDir, markers)
-	if err != nil {
-		return err
-	}
+	// Error is discarded here because the marker is guarunteed to not already exist
+	// by the previous call to marker.Delete()
+	markers, _ = marker.Add("previous", curDir, markers)
 
-	err = marker.SaveMarkers(markers)
+	err := marker.SaveMarkers(markers)
 	if err != nil {
 		return err
 	}
@@ -39,7 +37,7 @@ func main() {
 	flag.BoolVar(&adding, "add", false, "Adds a new marker with the provided name at the current working directory")
 	flag.BoolVar(&adding, "a", false, "Adds a new marker with the provided name at the current working directory")
 
-	flag.BoolVar(&deleting, "delete", false, "Deletes the specified marker")
+	flag.BoolVar(&deleting, "delete", false, "Deletes the specified marker.")
 	flag.BoolVar(&deleting, "d", false, "Deletes the specified marker")
 
 	flag.BoolVar(&listing, "list", false, "Lists the available markers")
