@@ -3,6 +3,7 @@ package marker
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -10,8 +11,9 @@ func LoadMarkers() (map[string]string, error) {
 	markers := make(map[string]string)
 
 	home, _ := os.UserHomeDir()
-	configPath := fmt.Sprintf("%s/.markers", home)
+	configPath := path.Join(home, ".markers")
 
+	// #nosec G304 -- configPath is not user-controlled
 	dat, err := os.ReadFile(configPath)
 	if err != nil {
 		return markers, err

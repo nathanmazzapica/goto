@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/nathanmazzapica/goto/internal/marker"
+	"log"
 	"os"
+	"path/filepath"
 )
 
 var adding bool
@@ -19,7 +21,7 @@ func setRecall(markers map[string]string) error {
 
 	// Errors are ignored here because it is okay if previous marker doesn't exist.
 	// We'll just make it in the marker.Add() call below
-	marker.Delete("previous", markers)
+	_ = marker.Delete("previous", markers)
 
 	// Error is discarded here because the marker is guarunteed to not already exist
 	// by the previous call to marker.Delete()
@@ -32,7 +34,39 @@ func setRecall(markers map[string]string) error {
 	return nil
 }
 
+func ensureDotFiles() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Join(home, ".config", "goto")
+	file := filepath.Join(dir, ".markers")
+
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+
+	// #nosec G304 -- filepath is not user-controlled
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_RDONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return nil
+}
+
 func main() {
+
+	err := ensureDotFiles()
+	if err != nil {
+		log.Fatalf("error ensuring dotfiles: %s", err.Error())
+	}
+
+	if len(os.Args) < 2 {
+		log.Fatalf("must pass atleast one argument")
+	}
 
 	flag.BoolVar(&adding, "add", false, "Adds a new marker with the provided name at the current working directory")
 	flag.BoolVar(&adding, "a", false, "Adds a new marker with the provided name at the current working directory")

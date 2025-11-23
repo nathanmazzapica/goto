@@ -18,7 +18,8 @@ func SaveMarkers(markers map[string]string) error {
 
 	home, _ := os.UserHomeDir()
 	configPath := fmt.Sprintf("%s/.markers", home)
-	err := os.WriteFile(configPath, data, 0644)
+
+	err := os.WriteFile(configPath, data, 0600)
 
 	return err
 }
