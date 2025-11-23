@@ -18,24 +18,37 @@ WIP
 
 ## Installation
 
-### 1. Clone the Repo
+### MacOS (Apple Silicon)
+
 ```bash
-git clone https://github.com/nathanmazzapica/goto.git
+curl -L https://github.com/nathanmazzapica/goto/releases/latest/download/goto-darwin-arm64 \
+  -o /usr/local/bin/goto
+chmod +x /usr/local/bin/goto
 ```
 
-### 2. CD into the Repo
+### Linux
+
 ```bash
-cd goto
+curl -L https://github.com/nathanmazzapica/goto/releases/latest/download/goto-linux-amd64 \
+  -o /usr/local/bin/goto
+chmod +x /usr/local/bin/goto
 ```
 
-### 2. Install the Go Binary
-```bash
-go install ./...
-```
->*This is only temporary while I figure out how GitHub releases work*
 
-### 3. Add the Shell Function
-##### 1. Add the following to your `.bashrc` or `.zshrc`:
+### Adding the Shell Function
+
+**Why is this required?**
+
+Shells do not allow external programs to change the working directory of your terminal.
+
+So while `goto` can retrieve the directory you want, it cannot run `cd` in your shell.
+
+To solve this a small shell function is required that:
+
+- Calls `goto`
+- Captures the output
+- and then performs `cd` in your running shell
+
 ```bash
 function tp() {
     local dir
