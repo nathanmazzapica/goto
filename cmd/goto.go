@@ -45,7 +45,7 @@ func ensureDotFiles() error {
 	dir := filepath.Join(home, ".config", "goto")
 	file := filepath.Join(dir, ".markers")
 
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 
