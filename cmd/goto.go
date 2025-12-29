@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/nathanmazzapica/goto/internal/marker"
 )
@@ -163,10 +164,38 @@ func main() {
 			os.Exit(0)
 		}
 
-		fmt.Printf("%-8s ->DESTINATION\n\n", "MARKER")
-		for _, key := range sortKeys(markers) {
-			fmt.Printf("%-8s ->%s\n", key, markers[key])
+		// Calculate column widths
+		markerWidth := len("MARKER")
+		destWidth := len("DESTINATION")
+
+		sortedKeys := sortKeys(markers)
+		for _, key := range sortedKeys {
+			if len(key) > markerWidth {
+				markerWidth = len(key)
+			}
+			trimmedPath := strings.TrimPrefix(markers[key], "/")
+			if len(trimmedPath) > destWidth {
+				destWidth = len(trimmedPath)
+			}
 		}
+
+		// Draw top border
+		fmt.Printf("┌─%s─┬─%s─┐\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
+
+		// Draw header
+		fmt.Printf("│ %-*s │ %-*s │\n", markerWidth, "MARKER", destWidth, "DESTINATION")
+
+		// Draw separator
+		fmt.Printf("├─%s─┼─%s─┤\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
+
+		// Draw rows
+		for _, key := range sortedKeys {
+			fmt.Printf("│ %-*s │ %-*s │\n", markerWidth, key, destWidth, strings.TrimPrefix(markers[key], "/"))
+		}
+
+		// Draw bottom border
+		fmt.Printf("└─%s─┴─%s─┘\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
+
 		os.Exit(0)
 	}
 
