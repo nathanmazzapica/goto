@@ -168,6 +168,11 @@ func main() {
 		markerWidth := len("MARKER")
 		destWidth := len("DESTINATION")
 
+		// Paths are trimmed to prevent accidental piping errors.
+		// One time when testing the -p flag, I used -l instead by accident and it shuffled my
+		// files around. I don't want this happening to me or anyone else again so I remove the
+		// leading / to make the filepath invalid
+
 		sortedKeys := sortKeys(markers)
 		for _, key := range sortedKeys {
 			if len(key) > markerWidth {
