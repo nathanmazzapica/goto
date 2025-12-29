@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/nathanmazzapica/goto/internal/marker"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+
+	"github.com/nathanmazzapica/goto/internal/marker"
 )
 
 var adding bool
@@ -55,6 +57,15 @@ func ensureDotFiles() error {
 	defer f.Close()
 
 	return nil
+}
+
+func sortKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func main() {
@@ -108,8 +119,8 @@ func main() {
 		}
 
 		fmt.Printf("%-8s ->DESTINATION\n\n", "MARKER")
-		for key, val := range markers {
-			fmt.Printf("%-8s ->%s\n", key, val)
+		for _, key := range sortKeys(markers) {
+			fmt.Printf("%-8s ->%s\n", key, markers[key])
 		}
 		os.Exit(0)
 	}
