@@ -11,7 +11,7 @@ func LoadMarkers() (map[string]string, error) {
 	markers := make(map[string]string)
 
 	home, _ := os.UserHomeDir()
-	configPath := path.Join(home, ".markers")
+	configPath := path.Join(home, ".config", "goto", ".markers")
 
 	// #nosec G304 -- configPath is not user-controlled
 	dat, err := os.ReadFile(configPath)
