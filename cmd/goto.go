@@ -3,8 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/nathanmazzapica/goto/internal/marker"
+	"log"
 	"os"
+	"path/filepath"
+	"sort"
+
+	"github.com/nathanmazzapica/goto/internal/marker"
 )
 
 var adding bool
@@ -19,7 +23,7 @@ func setRecall(markers map[string]string) error {
 
 	// Errors are ignored here because it is okay if previous marker doesn't exist.
 	// We'll just make it in the marker.Add() call below
-	marker.Delete("previous", markers)
+	_ = marker.Delete("previous", markers)
 
 	// Error is discarded here because the marker is guarunteed to not already exist
 	// by the previous call to marker.Delete()
@@ -32,7 +36,93 @@ func setRecall(markers map[string]string) error {
 	return nil
 }
 
+func ensureDotFiles() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Join(home, ".config", "goto")
+	file := filepath.Join(dir, ".markers")
+	oldFile := filepath.Join(home, ".markers")
+
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+
+	// Check if we need to migrate from old path
+	if err := migrateOldMarkers(oldFile, file); err != nil {
+		return err
+	}
+
+	// #nosec G304 -- filepath is not user-controlled
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_RDONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return nil
+}
+
+// migrateOldMarkers copies markers from old path (~/.markers) to new path (~/.config/goto/.markers)
+// if the old file exists and the new file is empty or doesn't exist.
+func migrateOldMarkers(oldPath, newPath string) error {
+	// Check if old file exists
+	// #nosec G304 -- oldPath is not user-controlled
+	oldData, err := os.ReadFile(oldPath)
+	if err != nil {
+		// Old file doesn't exist, nothing to migrate
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	// Check if old file has content
+	if len(oldData) == 0 {
+		return nil
+	}
+
+	// Check if new file exists and has content
+	// #nosec G304 -- newPath is not user-controlled
+	newData, err := os.ReadFile(newPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// If new file has content, don't overwrite it
+	if len(newData) > 0 {
+		return nil
+	}
+
+	// Migrate: copy old data to new path
+	if err := os.WriteFile(newPath, oldData, 0o600); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func sortKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func main() {
+
+	err := ensureDotFiles()
+	if err != nil {
+		log.Fatalf("error ensuring dotfiles: %s", err.Error())
+	}
+
+	if len(os.Args) < 2 {
+		log.Fatalf("must pass atleast one argument")
+	}
 
 	flag.BoolVar(&adding, "add", false, "Adds a new marker with the provided name at the current working directory")
 	flag.BoolVar(&adding, "a", false, "Adds a new marker with the provided name at the current working directory")
@@ -74,8 +164,8 @@ func main() {
 		}
 
 		fmt.Printf("%-8s ->DESTINATION\n\n", "MARKER")
-		for key, val := range markers {
-			fmt.Printf("%-8s ->%s\n", key, val)
+		for _, key := range sortKeys(markers) {
+			fmt.Printf("%-8s ->%s\n", key, markers[key])
 		}
 		os.Exit(0)
 	}

@@ -3,7 +3,7 @@ package marker
 import "fmt"
 
 var (
-	ErrAlreadyExists = fmt.Errorf("marker already exists!")
+	ErrAlreadyExists = fmt.Errorf("marker already exists")
 )
 
 func Add(key, path string, markers map[string]string) (map[string]string, error) {

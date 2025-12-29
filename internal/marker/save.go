@@ -3,6 +3,7 @@ package marker
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -17,8 +18,9 @@ func SaveMarkers(markers map[string]string) error {
 	data := []byte(strings.Join(pairs, "\n"))
 
 	home, _ := os.UserHomeDir()
-	configPath := fmt.Sprintf("%s/.markers", home)
-	err := os.WriteFile(configPath, data, 0644)
+	configPath := filepath.Join(home, ".config", "goto", ".markers")
+
+	err := os.WriteFile(configPath, data, 0600)
 
 	return err
 }
