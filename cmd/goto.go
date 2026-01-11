@@ -18,6 +18,7 @@ var listing bool
 var recall bool
 
 var printing bool
+var names bool
 
 func setRecall(markers map[string]string) error {
 	curDir, _ := os.Getwd()
@@ -139,21 +140,36 @@ func main() {
 
 	flag.BoolVar(&printing, "print", false, "Prints the directory the specified marker points to")
 	flag.BoolVar(&printing, "p", false, "Prints the directory the specified marker points to")
+
+	flag.BoolVar(&names, "names", false, "Prints available marker names")
+	flag.BoolVar(&names, "n", false, "Prints available marker names")
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
 
 	if err != nil {
-		if os.IsNotExist(err) && !adding {
-			fmt.Println("No markers exist! Add one with the -a flag!")
-			err = marker.SaveMarkers(markers)
-			if err != nil {
-				fmt.Printf("Failed to create markers file: %v\n", err)
+		if names && os.IsNotExist(err) {
+			markers = map[string]string{}
+		} else {
+			if os.IsNotExist(err) && !adding {
+				fmt.Println("No markers exist! Add one with the -a flag!")
+				err = marker.SaveMarkers(markers)
+				if err != nil {
+					fmt.Printf("Failed to create markers file: %v\n", err)
+				}
+				os.Exit(1)
 			}
+			fmt.Printf("Error loading markers: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Error loading markers: %v\n", err)
-		os.Exit(1)
+	}
+
+	if names {
+		sortedKeys := sortKeys(markers)
+		for _, key := range sortedKeys {
+			fmt.Println(key)
+		}
+		os.Exit(0)
 	}
 
 	target := os.Args[len(os.Args)-1]
@@ -168,19 +184,13 @@ func main() {
 		markerWidth := len("MARKER")
 		destWidth := len("DESTINATION")
 
-		// Paths are trimmed to prevent accidental piping errors.
-		// One time when testing the -p flag, I used -l instead by accident and it shuffled my
-		// files around. I don't want this happening to me or anyone else again so I remove the
-		// leading / to make the filepath invalid
-
 		sortedKeys := sortKeys(markers)
 		for _, key := range sortedKeys {
 			if len(key) > markerWidth {
 				markerWidth = len(key)
 			}
-			trimmedPath := strings.TrimPrefix(markers[key], "/")
-			if len(trimmedPath) > destWidth {
-				destWidth = len(trimmedPath)
+			if len(markers[key]) > destWidth {
+				destWidth = len(markers[key])
 			}
 		}
 
@@ -195,7 +205,7 @@ func main() {
 
 		// Draw rows
 		for _, key := range sortedKeys {
-			fmt.Printf("│ %-*s │ %-*s │\n", markerWidth, key, destWidth, strings.TrimPrefix(markers[key], "/"))
+			fmt.Printf("│ %-*s │ %-*s │\n", markerWidth, key, destWidth, markers[key])
 		}
 
 		// Draw bottom border

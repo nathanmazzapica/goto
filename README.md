@@ -60,6 +60,9 @@ function tp() {
             dir=$(goto $2)
             echo $dir
             ;;
+        -n|--names)
+            goto $@
+            ;;
         -r|--recall|*)
             dir=$(goto $1)
             if [ -d $dir ]; then
@@ -91,7 +94,20 @@ source ~/.bashrc
 | `tp --delete <name>` or `-d`  | Deletes the saved marker            |
 | `tp --recall` or `-r`         | Returns to the previous directory            |
 | `tp --print <name>` or `-p`          | Outputs the directory pointed to by <name>|
+| `tp --names` or `-n`          | Outputs saved marker names (one per line) |
 
+### Zsh completion
+
+Add completion for the `tp` function using the bundled file:
+
+```bash
+mkdir -p ~/.zfunc
+cp completions/_tp ~/.zfunc/
+fpath=(~/.zfunc $fpath)
+autoload -Uz compinit && compinit
+```
+
+`_tp` calls `goto --names` to suggest your saved markers when completing `tp <marker>`, `tp -p <marker>`, or `tp -d <marker>`.
 
 ## Examples
 
