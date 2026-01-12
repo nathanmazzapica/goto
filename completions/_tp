@@ -1,0 +1,21 @@
+#compdef tp
+
+_tp() {
+	local -a _tp_markers
+	_tp_markers=(${(f)"$(goto --names 2>/dev/null)"})
+
+	_arguments -C \
+		'(-a --add)'{-a,--add}'[Add marker]' \
+		'(-d --delete)'{-d,--delete}'[Delete marker]:marker name:->markers' \
+		'(-l --list)'{-l,--list}'[List markers]' \
+		'(-r --recall)'{-r,--recall}'[Return to previous directory]' \
+		'(-p --print)'{-p,--print}'[Print marker destination]:marker name:->markers' \
+		'(-n --names)'{-n,--names}'[List marker names]' \
+		'*:marker name:->default' && return 0
+
+	case $state in
+		(markers|default)
+			compadd -- ${_tp_markers[@]}
+		;;
+	esac
+}

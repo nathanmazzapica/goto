@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/nathanmazzapica/goto/internal/marker"
+	"github.com/nathanmazzapica/goto/internal/ui"
 )
 
 var adding bool
@@ -17,17 +18,20 @@ var listing bool
 var recall bool
 
 var printing bool
+var names bool
+
+const recallMarkerName = "previous"
 
 func setRecall(markers map[string]string) error {
 	curDir, _ := os.Getwd()
 
 	// Errors are ignored here because it is okay if previous marker doesn't exist.
 	// We'll just make it in the marker.Add() call below
-	_ = marker.Delete("previous", markers)
+	_ = marker.Delete(recallMarkerName, markers)
 
 	// Error is discarded here because the marker is guarunteed to not already exist
 	// by the previous call to marker.Delete()
-	markers, _ = marker.Add("previous", curDir, markers)
+	markers, _ = marker.Add(recallMarkerName, curDir, markers)
 
 	err := marker.SaveMarkers(markers)
 	if err != nil {
@@ -138,21 +142,34 @@ func main() {
 
 	flag.BoolVar(&printing, "print", false, "Prints the directory the specified marker points to")
 	flag.BoolVar(&printing, "p", false, "Prints the directory the specified marker points to")
+
+	flag.BoolVar(&names, "names", false, "Prints available marker names")
+	flag.BoolVar(&names, "n", false, "Prints available marker names")
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
+	if markers == nil {
+		markers = make(map[string]string)
+	}
 
 	if err != nil {
-		if os.IsNotExist(err) && !adding {
-			fmt.Println("No markers exist! Add one with the -a flag!")
-			err = marker.SaveMarkers(markers)
-			if err != nil {
-				fmt.Printf("Failed to create markers file: %v\n", err)
+		if os.IsNotExist(err) {
+			if !names && !adding {
+				fmt.Println("No markers exist! Add one with the -a flag!")
+				os.Exit(1)
 			}
+		} else {
+			fmt.Printf("Error loading markers: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Error loading markers: %v\n", err)
-		os.Exit(1)
+	}
+
+	if names {
+		sortedKeys := sortKeys(markers)
+		for _, key := range sortedKeys {
+			fmt.Println(key)
+		}
+		os.Exit(0)
 	}
 
 	target := os.Args[len(os.Args)-1]
@@ -163,10 +180,7 @@ func main() {
 			os.Exit(0)
 		}
 
-		fmt.Printf("%-8s ->DESTINATION\n\n", "MARKER")
-		for _, key := range sortKeys(markers) {
-			fmt.Printf("%-8s ->%s\n", key, markers[key])
-		}
+		fmt.Print(ui.FormatListing(markers))
 		os.Exit(0)
 	}
 
@@ -181,6 +195,11 @@ func main() {
 	}
 
 	if adding {
+		if target == recallMarkerName {
+			fmt.Printf("%s is reserved for tp --recall\n", recallMarkerName)
+			os.Exit(1)
+		}
+
 		dir, _ := os.Getwd()
 		markers, err := marker.Add(target, dir, markers)
 
@@ -202,7 +221,7 @@ func main() {
 	}
 
 	if recall {
-		if t, ok := markers["previous"]; ok {
+		if t, ok := markers[recallMarkerName]; ok {
 			destDir := t
 			err := setRecall(markers)
 			if err != nil {

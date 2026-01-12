@@ -1,9 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
+
+	"github.com/nathanmazzapica/goto/internal/marker"
+	"github.com/nathanmazzapica/goto/internal/ui"
 )
 
 func createTestMarkers(n int) map[string]string {
@@ -199,5 +206,101 @@ func TestMigrateOldMarkers_MigratesWhenNewFileEmpty(t *testing.T) {
 
 	if string(data) != oldContent {
 		t.Errorf("expected content %q, got %q", oldContent, string(data))
+	}
+}
+
+func writeMarkers(t *testing.T, home string, markers map[string]string) {
+	t.Helper()
+	configDir := filepath.Join(home, ".config", "goto")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+	if err := marker.SaveMarkers(markers); err != nil {
+		t.Fatalf("failed to save markers: %v", err)
+	}
+}
+
+func runGoto(t *testing.T, home string, args ...string) (string, error) {
+	t.Helper()
+	cmd := exec.Command("go", append([]string{"run", "./goto.go"}, args...)...)
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	markers := map[string]string{
+		"space name":       "/path/space name",
+		"marker-with-dash": "/path/dash",
+		"alpha":            "/path/alpha",
+		"unicøde":          "/path/unicøde",
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, home, "--names")
+	if err != nil {
+		t.Fatalf("goto --names failed: %v, output: %s", err, out)
+	}
+
+	expectedKeys := []string{"alpha", "marker-with-dash", "space name", "unicøde"}
+	sort.Strings(expectedKeys)
+	expected := strings.Join(expectedKeys, "\n") + "\n"
+
+	if out != expected {
+		t.Fatalf("unexpected names output.\nexpected:\n%q\ngot:\n%q", expected, out)
+	}
+}
+
+func TestNamesFlagHandlesEmptyMarkers(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeMarkers(t, home, map[string]string{})
+
+	out, err := runGoto(t, home, "--names")
+	if err != nil {
+		t.Fatalf("goto --names failed on empty markers: %v, output: %s", err, out)
+	}
+
+	if out != "" {
+		t.Fatalf("expected no output for empty markers, got %q", out)
+	}
+}
+
+func TestListOutputsBoxDrawingWithWidths(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	markers := map[string]string{
+		"longnameeeee": "/very/long/path/here",
+		"short":        "/s",
+		"special name": "/tmp/special path",
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, home, "--list")
+	if err != nil {
+		t.Fatalf("goto --list failed: %v, output: %s", err, out)
+	}
+
+	expected := ui.FormatListing(markers)
+
+	if out != expected {
+		t.Fatalf("unexpected list output.\nexpected:\n%q\ngot:\n%q", expected, out)
+	}
+}
+
+func TestAddRejectsRecallMarkerName(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	out, err := runGoto(t, home, "--add", recallMarkerName)
+	if err == nil {
+		t.Fatalf("expected failure when adding reserved marker name, got success with output: %s", out)
+	}
+
+	expected := fmt.Sprintf("%s is reserved for tp --recall\n", recallMarkerName)
+	if !strings.HasPrefix(out, expected) {
+		t.Fatalf("unexpected output when adding reserved marker. expected prefix %q, got %q", expected, out)
 	}
 }
