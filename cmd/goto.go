@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/nathanmazzapica/goto/internal/marker"
+	"github.com/nathanmazzapica/goto/internal/ui"
 )
 
 var adding bool
@@ -20,16 +20,18 @@ var recall bool
 var printing bool
 var names bool
 
+const recallMarkerName = "previous"
+
 func setRecall(markers map[string]string) error {
 	curDir, _ := os.Getwd()
 
 	// Errors are ignored here because it is okay if previous marker doesn't exist.
 	// We'll just make it in the marker.Add() call below
-	_ = marker.Delete("previous", markers)
+	_ = marker.Delete(recallMarkerName, markers)
 
 	// Error is discarded here because the marker is guarunteed to not already exist
 	// by the previous call to marker.Delete()
-	markers, _ = marker.Add("previous", curDir, markers)
+	markers, _ = marker.Add(recallMarkerName, curDir, markers)
 
 	err := marker.SaveMarkers(markers)
 	if err != nil {
@@ -178,37 +180,7 @@ func main() {
 			os.Exit(0)
 		}
 
-		// Calculate column widths
-		markerWidth := len("MARKER")
-		destWidth := len("DESTINATION")
-
-		sortedKeys := sortKeys(markers)
-		for _, key := range sortedKeys {
-			if len(key) > markerWidth {
-				markerWidth = len(key)
-			}
-			if len(markers[key]) > destWidth {
-				destWidth = len(markers[key])
-			}
-		}
-
-		// Draw top border
-		fmt.Printf("┌─%s─┬─%s─┐\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
-
-		// Draw header
-		fmt.Printf("│ %-*s │ %-*s │\n", markerWidth, "MARKER", destWidth, "DESTINATION")
-
-		// Draw separator
-		fmt.Printf("├─%s─┼─%s─┤\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
-
-		// Draw rows
-		for _, key := range sortedKeys {
-			fmt.Printf("│ %-*s │ %-*s │\n", markerWidth, key, destWidth, markers[key])
-		}
-
-		// Draw bottom border
-		fmt.Printf("└─%s─┴─%s─┘\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
-
+		fmt.Print(ui.FormatListing(markers))
 		os.Exit(0)
 	}
 
@@ -223,6 +195,11 @@ func main() {
 	}
 
 	if adding {
+		if target == recallMarkerName {
+			fmt.Printf("%s is reserved for tp --recall\n", recallMarkerName)
+			os.Exit(1)
+		}
+
 		dir, _ := os.Getwd()
 		markers, err := marker.Add(target, dir, markers)
 
@@ -244,7 +221,7 @@ func main() {
 	}
 
 	if recall {
-		if t, ok := markers["previous"]; ok {
+		if t, ok := markers[recallMarkerName]; ok {
 			destDir := t
 			err := setRecall(markers)
 			if err != nil {

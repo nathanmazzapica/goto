@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/nathanmazzapica/goto/internal/marker"
+	"github.com/nathanmazzapica/goto/internal/ui"
 )
 
 func createTestMarkers(n int) map[string]string {
@@ -227,33 +228,6 @@ func runGoto(t *testing.T, home string, args ...string) (string, error) {
 	return string(out), err
 }
 
-func buildExpectedListing(markers map[string]string) string {
-	markerWidth := len("MARKER")
-	destWidth := len("DESTINATION")
-	keys := sortKeys(markers)
-
-	for _, key := range keys {
-		if len(key) > markerWidth {
-			markerWidth = len(key)
-		}
-		if len(markers[key]) > destWidth {
-			destWidth = len(markers[key])
-		}
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "┌─%s─┬─%s─┐\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
-	fmt.Fprintf(&b, "│ %-*s │ %-*s │\n", markerWidth, "MARKER", destWidth, "DESTINATION")
-	fmt.Fprintf(&b, "├─%s─┼─%s─┤\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
-
-	for _, key := range keys {
-		fmt.Fprintf(&b, "│ %-*s │ %-*s │\n", markerWidth, key, destWidth, markers[key])
-	}
-
-	fmt.Fprintf(&b, "└─%s─┴─%s─┘\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destWidth))
-	return b.String()
-}
-
 func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -309,9 +283,24 @@ func TestListOutputsBoxDrawingWithWidths(t *testing.T) {
 		t.Fatalf("goto --list failed: %v, output: %s", err, out)
 	}
 
-	expected := buildExpectedListing(markers)
+	expected := ui.FormatListing(markers)
 
 	if out != expected {
 		t.Fatalf("unexpected list output.\nexpected:\n%q\ngot:\n%q", expected, out)
+	}
+}
+
+func TestAddRejectsRecallMarkerName(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	out, err := runGoto(t, home, "--add", recallMarkerName)
+	if err == nil {
+		t.Fatalf("expected failure when adding reserved marker name, got success with output: %s", out)
+	}
+
+	expected := fmt.Sprintf("%s is reserved for tp --recall\n", recallMarkerName)
+	if !strings.HasPrefix(out, expected) {
+		t.Fatalf("unexpected output when adding reserved marker. expected prefix %q, got %q", expected, out)
 	}
 }
