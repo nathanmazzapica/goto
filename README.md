@@ -57,6 +57,7 @@ function tp() {
             goto $@
             ;;
         -p|--print)
+            # the -p flag prints the destination for the marker specified in $2
             dir=$(goto $2)
             echo $dir
             ;;
