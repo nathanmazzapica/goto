@@ -146,19 +146,17 @@ func main() {
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
+	if markers == nil {
+		markers = make(map[string]string)
+	}
 
 	if err != nil {
-		if names && os.IsNotExist(err) {
-			markers = map[string]string{}
-		} else {
-			if os.IsNotExist(err) && !adding {
+		if os.IsNotExist(err) {
+			if !names && !adding {
 				fmt.Println("No markers exist! Add one with the -a flag!")
-				err = marker.SaveMarkers(markers)
-				if err != nil {
-					fmt.Printf("Failed to create markers file: %v\n", err)
-				}
 				os.Exit(1)
 			}
+		} else {
 			fmt.Printf("Error loading markers: %v\n", err)
 			os.Exit(1)
 		}
