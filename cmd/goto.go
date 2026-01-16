@@ -261,7 +261,6 @@ func main() {
 	if recall {
 		if t, ok := markers[recallMarkerName]; ok {
 			destDir := t.Path
-			incrementUsage(recallMarkerName, markers)
 			err := setRecall(markers)
 			if err != nil {
 				fmt.Println("error updating recall dest:", err)
