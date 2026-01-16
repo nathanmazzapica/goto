@@ -104,12 +104,15 @@ func migrateOldMarkers(oldPath, newPath string) error {
 	return nil
 }
 
-func incrementUsage(name string, markers marker.MarkerMap) marker.MarkerMap {
+func incrementUsage(name string, markers marker.MarkerMap) {
+	if name == recallMarkerName {
+		return
+	}
+
 	if m, ok := markers[name]; ok {
 		m.Usage++
 		markers[name] = m
 	}
-	return markers
 }
 
 func sortKeysAlpha(m marker.MarkerMap) []string {
@@ -258,7 +261,7 @@ func main() {
 	if recall {
 		if t, ok := markers[recallMarkerName]; ok {
 			destDir := t.Path
-			markers = incrementUsage(recallMarkerName, markers)
+			incrementUsage(recallMarkerName, markers)
 			err := setRecall(markers)
 			if err != nil {
 				fmt.Println("error updating recall dest:", err)
@@ -267,13 +270,14 @@ func main() {
 			fmt.Println(destDir)
 			os.Exit(0)
 		}
+
 		fmt.Println("No recall position")
 		os.Exit(1)
 	}
 
 	if t, ok := markers[target]; ok {
 		destDir := t.Path
-		markers = incrementUsage(target, markers)
+		incrementUsage(target, markers)
 		err := setRecall(markers)
 		if err != nil {
 			fmt.Println("error updating recall dest:", err)
