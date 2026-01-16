@@ -19,25 +19,21 @@ var recall bool
 
 var printing bool
 var names bool
+var sortOption string
 
 const recallMarkerName = "previous"
 
 func setRecall(markers marker.MarkerMap) error {
 	curDir, _ := os.Getwd()
 
-	// Errors are ignored here because it is okay if previous marker doesn't exist.
-	// We'll just make it in the marker.Add() call below
-	_ = marker.Delete(recallMarkerName, markers)
-
-	// Error is discarded here because the marker is guaranteed to not already exist
-	// by the previous call to marker.Delete()
-	markers, _ = marker.Add(recallMarkerName, curDir, markers)
-
-	err := marker.SaveMarkers(markers)
-	if err != nil {
-		return err
+	existingUsage := 0
+	if recallMarker, ok := markers[recallMarkerName]; ok {
+		existingUsage = recallMarker.Usage
 	}
-	return nil
+
+	markers[recallMarkerName] = marker.Marker{Path: curDir, Usage: existingUsage}
+
+	return marker.SaveMarkers(markers)
 }
 
 func ensureDotFiles() error {
@@ -108,12 +104,40 @@ func migrateOldMarkers(oldPath, newPath string) error {
 	return nil
 }
 
-func sortKeys(m marker.MarkerMap) []string {
+func incrementUsage(name string, markers marker.MarkerMap) marker.MarkerMap {
+	if m, ok := markers[name]; ok {
+		m.Usage++
+		markers[name] = m
+	}
+	return markers
+}
+
+func sortKeysAlpha(m marker.MarkerMap) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	return keys
+}
+
+func sortKeysUsage(m marker.MarkerMap) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		left := m[keys[i]]
+		right := m[keys[j]]
+
+		if left.Usage == right.Usage {
+			return keys[i] < keys[j]
+		}
+
+		return left.Usage > right.Usage
+	})
+
 	return keys
 }
 
@@ -145,6 +169,7 @@ func main() {
 
 	flag.BoolVar(&names, "names", false, "Prints available marker names")
 	flag.BoolVar(&names, "n", false, "Prints available marker names")
+	flag.StringVar(&sortOption, "sort", "alpha", "Sort order for --list: alpha or usage")
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
@@ -165,7 +190,7 @@ func main() {
 	}
 
 	if names {
-		sortedKeys := sortKeys(markers)
+		sortedKeys := sortKeysUsage(markers)
 		for _, key := range sortedKeys {
 			fmt.Println(key)
 		}
@@ -175,12 +200,22 @@ func main() {
 	target := os.Args[len(os.Args)-1]
 
 	if listing {
+		if sortOption != "alpha" && sortOption != "usage" {
+			fmt.Printf("invalid sort option: %s\n", sortOption)
+			os.Exit(1)
+		}
+
 		if len(markers) == 0 {
 			fmt.Println("No markers exist! Add one with the -a flag!")
 			os.Exit(0)
 		}
 
-		fmt.Print(ui.FormatListing(markers))
+		keys := sortKeysAlpha(markers)
+		if sortOption == "usage" {
+			keys = sortKeysUsage(markers)
+		}
+
+		fmt.Print(ui.FormatListing(markers, keys))
 		os.Exit(0)
 	}
 
@@ -223,6 +258,7 @@ func main() {
 	if recall {
 		if t, ok := markers[recallMarkerName]; ok {
 			destDir := t.Path
+			markers = incrementUsage(recallMarkerName, markers)
 			err := setRecall(markers)
 			if err != nil {
 				fmt.Println("error updating recall dest:", err)
@@ -237,6 +273,7 @@ func main() {
 
 	if t, ok := markers[target]; ok {
 		destDir := t.Path
+		markers = incrementUsage(target, markers)
 		err := setRecall(markers)
 		if err != nil {
 			fmt.Println("error updating recall dest:", err)

@@ -26,6 +26,38 @@ func createTestMarkers(n int) marker.MarkerMap {
 	return markers
 }
 
+func sortKeysAlphaTest(m marker.MarkerMap) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func sortKeysUsageTest(m marker.MarkerMap) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		left := m[keys[i]]
+		right := m[keys[j]]
+
+		if left.Usage == right.Usage {
+			return keys[i] < keys[j]
+		}
+		return left.Usage > right.Usage
+	})
+
+	return keys
+}
+
+func sortKeys(m marker.MarkerMap) []string {
+	return sortKeysAlphaTest(m)
+}
+
 func BenchmarkSortKeys(b *testing.B) {
 	markers := createTestMarkers(10)
 	for i := 0; i < b.N; i++ {
@@ -253,10 +285,10 @@ func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	markers := marker.MarkerMap{
-		"space name":       {Path: "/path/space name"},
-		"marker-with-dash": {Path: "/path/dash"},
-		"alpha":            {Path: "/path/alpha"},
-		"unicøde":          {Path: "/path/unicøde"},
+		"space name":       {Path: "/path/space name", Usage: 3},
+		"marker-with-dash": {Path: "/path/dash", Usage: 3},
+		"alpha":            {Path: "/path/alpha", Usage: 1},
+		"unicøde":          {Path: "/path/unicøde", Usage: 0},
 	}
 	writeMarkers(t, home, markers)
 
@@ -265,8 +297,7 @@ func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 		t.Fatalf("goto --names failed: %v, output: %s", err, out)
 	}
 
-	expectedKeys := []string{"alpha", "marker-with-dash", "space name", "unicøde"}
-	sort.Strings(expectedKeys)
+	expectedKeys := sortKeysUsageTest(markers)
 	expected := strings.Join(expectedKeys, "\n") + "\n"
 
 	if out != expected {
@@ -310,7 +341,8 @@ func TestListOutputsBoxDrawingWithWidths(t *testing.T) {
 		t.Fatalf("goto --list failed: %v, output: %s", err, out)
 	}
 
-	expected := ui.FormatListing(markers)
+	keys := sortKeysAlphaTest(markers)
+	expected := ui.FormatListing(markers, keys)
 
 	if out != expected {
 		t.Fatalf("unexpected list output.\nexpected:\n%q\ngot:\n%q", expected, out)
@@ -331,5 +363,89 @@ func TestAddRejectsRecallMarkerName(t *testing.T) {
 	expected := fmt.Sprintf("%s is reserved for tp --recall\n", recallMarkerName)
 	if !strings.HasPrefix(out, expected) {
 		t.Fatalf("unexpected output when adding reserved marker. expected prefix %q, got %q", expected, out)
+	}
+}
+
+func TestListSortUsageOrdersByUsage(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha", Usage: 1},
+		"beta":  {Path: "/path/beta", Usage: 3},
+		"gamma": {Path: "/path/gamma", Usage: 3},
+		"delta": {Path: "/path/delta", Usage: 0},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "--list", "--sort", "usage")
+	if err != nil {
+		t.Fatalf("goto --list --sort usage failed: %v, output: %s", err, out)
+	}
+
+	keys := sortKeysUsageTest(markers)
+	expected := ui.FormatListing(markers, keys)
+
+	if out != expected {
+		t.Fatalf("unexpected usage-sorted list output.\nexpected:\n%q\ngot:\n%q", expected, out)
+	}
+}
+
+func TestNavigationIncrementsUsage(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha", Usage: 2},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "alpha")
+	if err != nil {
+		t.Fatalf("goto navigation failed: %v, output: %s", err, out)
+	}
+
+	loaded, loadErr := marker.LoadMarkers()
+	if loadErr != nil {
+		t.Fatalf("failed to reload markers: %v", loadErr)
+	}
+
+	if got := loaded["alpha"].Usage; got != 3 {
+		t.Fatalf("expected usage to increment to 3, got %d", got)
+	}
+}
+
+func TestPrintIncrementsUsage(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha", Usage: 5},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "--print", "alpha")
+	if err != nil {
+		t.Fatalf("goto --print failed: %v, output: %s", err, out)
+	}
+
+	loaded, loadErr := marker.LoadMarkers()
+	if loadErr != nil {
+		t.Fatalf("failed to reload markers: %v", loadErr)
+	}
+
+	if got := loaded["alpha"].Usage; got != 6 {
+		t.Fatalf("expected usage to increment to 6, got %d", got)
+	}
+
+	expectedOutput := "/path/alpha\n"
+	if out != expectedOutput {
+		t.Fatalf("unexpected print output. expected %q got %q", expectedOutput, out)
 	}
 }
