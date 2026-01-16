@@ -13,15 +13,15 @@ import (
 	"github.com/nathanmazzapica/goto/internal/ui"
 )
 
-func createTestMarkers(n int) map[string]string {
-	markers := make(map[string]string, n)
+func createTestMarkers(n int) marker.MarkerMap {
+	markers := make(marker.MarkerMap, n)
 	names := []string{"zulu", "alpha", "mike", "bravo", "yankee", "charlie",
 		"xray", "delta", "whiskey", "echo", "victor", "foxtrot", "uniform",
 		"golf", "tango", "hotel", "sierra", "india", "romeo", "juliet",
 		"quebec", "kilo", "papa", "lima", "oscar", "november"}
 
 	for i := 0; i < n && i < len(names); i++ {
-		markers[names[i]] = "/some/path/" + names[i]
+		markers[names[i]] = marker.Marker{Path: "/some/path/" + names[i]}
 	}
 	return markers
 }
@@ -107,6 +107,7 @@ func TestMigrateOldMarkers_OldFileEmpty(t *testing.T) {
 	}
 }
 
+// TestMigrateOldMarkers_MigratesContent ensures that markers from an old .markers file are properly migrated to the new .markers destination
 func TestMigrateOldMarkers_MigratesContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldPath := filepath.Join(tmpDir, ".markers")
@@ -209,7 +210,7 @@ func TestMigrateOldMarkers_MigratesWhenNewFileEmpty(t *testing.T) {
 	}
 }
 
-func writeMarkers(t *testing.T, home string, markers map[string]string) {
+func writeMarkers(t *testing.T, home string, markers marker.MarkerMap) {
 	t.Helper()
 	configDir := filepath.Join(home, ".config", "goto")
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
@@ -220,9 +221,26 @@ func writeMarkers(t *testing.T, home string, markers map[string]string) {
 	}
 }
 
-func runGoto(t *testing.T, home string, args ...string) (string, error) {
+// buildGotoBinary builds the CLI once for the test run to avoid repeated
+// go run compiles. Longer term, refactor CLI logic into a callable function to
+// test without spawning a process.
+func buildGotoBinary(t *testing.T) (string, func()) {
 	t.Helper()
-	cmd := exec.Command("go", append([]string{"run", "./goto.go"}, args...)...)
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "goto-test-bin")
+	cmd := exec.Command("go", "build", "-o", binaryPath, "./goto.go")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build goto binary: %v, output: %s", err, string(out))
+	}
+	cleanup := func() {
+		_ = os.Remove(binaryPath)
+	}
+	return binaryPath, cleanup
+}
+
+func runGoto(t *testing.T, binaryPath, home string, args ...string) (string, error) {
+	t.Helper()
+	cmd := exec.Command(binaryPath, args...)
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
@@ -231,15 +249,18 @@ func runGoto(t *testing.T, home string, args ...string) (string, error) {
 func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	markers := map[string]string{
-		"space name":       "/path/space name",
-		"marker-with-dash": "/path/dash",
-		"alpha":            "/path/alpha",
-		"unicøde":          "/path/unicøde",
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"space name":       {Path: "/path/space name"},
+		"marker-with-dash": {Path: "/path/dash"},
+		"alpha":            {Path: "/path/alpha"},
+		"unicøde":          {Path: "/path/unicøde"},
 	}
 	writeMarkers(t, home, markers)
 
-	out, err := runGoto(t, home, "--names")
+	out, err := runGoto(t, binaryPath, home, "--names")
 	if err != nil {
 		t.Fatalf("goto --names failed: %v, output: %s", err, out)
 	}
@@ -256,9 +277,12 @@ func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 func TestNamesFlagHandlesEmptyMarkers(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	writeMarkers(t, home, map[string]string{})
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
 
-	out, err := runGoto(t, home, "--names")
+	writeMarkers(t, home, marker.MarkerMap{})
+
+	out, err := runGoto(t, binaryPath, home, "--names")
 	if err != nil {
 		t.Fatalf("goto --names failed on empty markers: %v, output: %s", err, out)
 	}
@@ -271,14 +295,17 @@ func TestNamesFlagHandlesEmptyMarkers(t *testing.T) {
 func TestListOutputsBoxDrawingWithWidths(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	markers := map[string]string{
-		"longnameeeee": "/very/long/path/here",
-		"short":        "/s",
-		"special name": "/tmp/special path",
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"longnameeeee": {Path: "/very/long/path/here"},
+		"short":        {Path: "/s"},
+		"special name": {Path: "/tmp/special path"},
 	}
 	writeMarkers(t, home, markers)
 
-	out, err := runGoto(t, home, "--list")
+	out, err := runGoto(t, binaryPath, home, "--list")
 	if err != nil {
 		t.Fatalf("goto --list failed: %v, output: %s", err, out)
 	}
@@ -293,8 +320,10 @@ func TestListOutputsBoxDrawingWithWidths(t *testing.T) {
 func TestAddRejectsRecallMarkerName(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
 
-	out, err := runGoto(t, home, "--add", recallMarkerName)
+	out, err := runGoto(t, binaryPath, home, "--add", recallMarkerName)
 	if err == nil {
 		t.Fatalf("expected failure when adding reserved marker name, got success with output: %s", out)
 	}

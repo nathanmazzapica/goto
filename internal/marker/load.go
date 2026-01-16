@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
-func LoadMarkers() (map[string]string, error) {
-	markers := make(map[string]string)
+func LoadMarkers() (MarkerMap, error) {
+	markers := make(MarkerMap)
 
 	home, _ := os.UserHomeDir()
 	configPath := filepath.Join(home, ".config", "goto", ".markers")
@@ -26,13 +27,38 @@ func LoadMarkers() (map[string]string, error) {
 			continue
 		}
 
-		key, value, found := strings.Cut(pair, ":")
-		if !found {
-			// TODO: handle better?
-			fmt.Printf("error splitting pair: %s\n", pair)
-			return markers, fmt.Errorf("invalid pair: { %s }", pair)
+		fields := strings.Split(pair, ":")
+		if len(fields) != 2 && len(fields) != 3 {
+			return markers, fmt.Errorf("invalid marker entry: %s", pair)
 		}
-		markers[key] = value
+
+		name := fields[0]
+		path := fields[1]
+
+		if strings.Contains(name, ":") {
+			return markers, fmt.Errorf("invalid marker name contains ':'")
+		}
+
+		if strings.Contains(path, ":") {
+			return markers, fmt.Errorf("invalid marker path contains ':'")
+		}
+
+		usage := 0
+		if len(fields) == 3 {
+			if fields[2] == "" {
+				return markers, fmt.Errorf("invalid marker usage in entry: %s", pair)
+			}
+			parsed, parseErr := strconv.Atoi(fields[2])
+			if parseErr != nil {
+				return markers, fmt.Errorf("invalid marker usage in entry: %s", pair)
+			}
+			if parsed < 0 {
+				return markers, fmt.Errorf("marker usage cannot be negative: %s", pair)
+			}
+			usage = parsed
+		}
+
+		markers[name] = Marker{Path: path, Usage: usage}
 	}
 
 	return markers, nil

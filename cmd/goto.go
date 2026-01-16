@@ -22,14 +22,14 @@ var names bool
 
 const recallMarkerName = "previous"
 
-func setRecall(markers map[string]string) error {
+func setRecall(markers marker.MarkerMap) error {
 	curDir, _ := os.Getwd()
 
 	// Errors are ignored here because it is okay if previous marker doesn't exist.
 	// We'll just make it in the marker.Add() call below
 	_ = marker.Delete(recallMarkerName, markers)
 
-	// Error is discarded here because the marker is guarunteed to not already exist
+	// Error is discarded here because the marker is guaranteed to not already exist
 	// by the previous call to marker.Delete()
 	markers, _ = marker.Add(recallMarkerName, curDir, markers)
 
@@ -108,7 +108,7 @@ func migrateOldMarkers(oldPath, newPath string) error {
 	return nil
 }
 
-func sortKeys(m map[string]string) []string {
+func sortKeys(m marker.MarkerMap) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -149,7 +149,7 @@ func main() {
 
 	markers, err := marker.LoadMarkers()
 	if markers == nil {
-		markers = make(map[string]string)
+		markers = make(marker.MarkerMap)
 	}
 
 	if err != nil {
@@ -222,7 +222,7 @@ func main() {
 
 	if recall {
 		if t, ok := markers[recallMarkerName]; ok {
-			destDir := t
+			destDir := t.Path
 			err := setRecall(markers)
 			if err != nil {
 				fmt.Println("error updating recall dest:", err)
@@ -236,7 +236,7 @@ func main() {
 	}
 
 	if t, ok := markers[target]; ok {
-		destDir := t
+		destDir := t.Path
 		err := setRecall(markers)
 		if err != nil {
 			fmt.Println("error updating recall dest:", err)

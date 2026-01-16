@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/nathanmazzapica/goto/internal/marker"
 )
 
 // FormatListing returns a table of markers and destinations using box-drawing characters.
-func FormatListing(markers map[string]string) string {
+func FormatListing(markers marker.MarkerMap) string {
 	markerWidth := len("MARKER")
 	destinationWidth := len("DESTINATION")
 
@@ -21,8 +23,8 @@ func FormatListing(markers map[string]string) string {
 		if len(key) > markerWidth {
 			markerWidth = len(key)
 		}
-		if len(markers[key]) > destinationWidth {
-			destinationWidth = len(markers[key])
+		if len(markers[key].Path) > destinationWidth {
+			destinationWidth = len(markers[key].Path)
 		}
 	}
 
@@ -32,7 +34,7 @@ func FormatListing(markers map[string]string) string {
 	fmt.Fprintf(&builder, "├─%s─┼─%s─┤\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destinationWidth))
 
 	for _, key := range keys {
-		fmt.Fprintf(&builder, "│ %-*s │ %-*s │\n", markerWidth, key, destinationWidth, markers[key])
+		fmt.Fprintf(&builder, "│ %-*s │ %-*s │\n", markerWidth, key, destinationWidth, markers[key].Path)
 	}
 
 	fmt.Fprintf(&builder, "└─%s─┴─%s─┘\n", strings.Repeat("─", markerWidth), strings.Repeat("─", destinationWidth))
