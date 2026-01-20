@@ -3,6 +3,8 @@
 _tp() {
 	local -a _tp_markers
 	_tp_markers=(${(f)"$(goto --names 2>/dev/null)"})
+	zstyle ':completion:*:tp:*' sort false
+	zstyle ':completion:*:goto:*' sort false
 
 	_arguments -C \
 		'(-a --add)'{-a,--add}'[Add marker]' \
@@ -11,11 +13,16 @@ _tp() {
 		'(-r --recall)'{-r,--recall}'[Return to previous directory]' \
 		'(-p --print)'{-p,--print}'[Print marker destination]:marker name:->markers' \
 		'(-n --names)'{-n,--names}'[List marker names]' \
-		'*:marker name:->default' && return 0
+		'*:marker name:->markers' && return 0
 
 	case $state in
 		(markers|default)
-			compadd -- ${_tp_markers[@]}
+			local expl matches
+			matches=(${(M)_tp_markers:#${PREFIX}*})
+			(( $#matches )) || return 1
+			_wanted markers expl 'marker' compadd -Q -U -a matches
 		;;
 	esac
 }
+
+

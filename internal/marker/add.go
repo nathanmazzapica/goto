@@ -1,14 +1,34 @@
 package marker
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 var (
 	ErrAlreadyExists = fmt.Errorf("marker already exists")
+	ErrInvalidName   = fmt.Errorf("marker names cannot contain ':'")
+	ErrInvalidPath   = fmt.Errorf("marker paths cannot contain ':'")
 )
 
-func Add(key, path string, markers map[string]string) (map[string]string, error) {
+type Marker struct {
+	Path  string
+	Usage int
+}
+
+type MarkerMap map[string]Marker
+
+func Add(key, path string, markers MarkerMap) (MarkerMap, error) {
+	if strings.Contains(key, ":") {
+		return markers, ErrInvalidName
+	}
+
+	if strings.Contains(path, ":") {
+		return markers, ErrInvalidPath
+	}
+
 	if _, ok := markers[key]; !ok {
-		markers[key] = path
+		markers[key] = Marker{Path: path, Usage: 0}
 		return markers, nil
 	}
 
