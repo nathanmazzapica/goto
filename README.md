@@ -53,7 +53,7 @@ To solve this a small shell function is required that:
 function tp() {
     local dir
     case $1 in 
-        -d|--delete|-a|--add|-l|--list)
+        -d|--delete|-a|--add|-l|--list|-c|--current)
             goto $@
             ;;
         -p|--print)
@@ -96,6 +96,7 @@ source ~/.bashrc
 | `tp --recall` or `-r`         | Returns to the previous directory            |
 | `tp --print <name>` or `-p`          | Outputs the directory pointed to by <name>|
 | `tp --names` or `-n`          | Outputs saved marker names (one per line) |
+| `tp --current` or `-c`          | Outputs marker name for the current directory, or `no marker at location` |
 
 ### Zsh completion
 

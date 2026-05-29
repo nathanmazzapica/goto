@@ -278,6 +278,15 @@ func runGoto(t *testing.T, binaryPath, home string, args ...string) (string, err
 	return string(out), err
 }
 
+func runGotoInDir(t *testing.T, binaryPath, home, dir string, args ...string) (string, error) {
+	t.Helper()
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
 func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -447,5 +456,50 @@ func TestPrintIncrementsUsage(t *testing.T) {
 	expectedOutput := "/path/alpha\n"
 	if out != expectedOutput {
 		t.Fatalf("unexpected print output. expected %q got %q", expectedOutput, out)
+	}
+}
+
+func TestCurrentPrintsMarkerNameForCurrentDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	currentDir := t.TempDir()
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha", Usage: 1},
+		"here":  {Path: currentDir, Usage: 2},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGotoInDir(t, binaryPath, home, currentDir, "--current")
+	if err != nil {
+		t.Fatalf("goto --current failed: %v, output: %s", err, out)
+	}
+
+	if out != "here\n" {
+		t.Fatalf("unexpected current marker output. expected %q got %q", "here\n", out)
+	}
+}
+
+func TestCurrentPrintsNoMarkerMessageWhenNoMarkerAtDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	currentDir := t.TempDir()
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha", Usage: 1},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGotoInDir(t, binaryPath, home, currentDir, "--current")
+	if err != nil {
+		t.Fatalf("goto --current failed: %v, output: %s", err, out)
+	}
+
+	if out != "no marker at location\n" {
+		t.Fatalf("unexpected output. expected %q got %q", "no marker at location\n", out)
 	}
 }

@@ -19,6 +19,7 @@ var recall bool
 
 var printing bool
 var names bool
+var current bool
 var sortOption string
 
 const recallMarkerName = "previous"
@@ -144,6 +145,20 @@ func sortKeysUsage(m marker.MarkerMap) []string {
 	return keys
 }
 
+func markerForPath(markers marker.MarkerMap, path string) (string, bool) {
+	for _, name := range sortKeysAlpha(markers) {
+		if name == recallMarkerName {
+			continue
+		}
+
+		if markers[name].Path == path {
+			return name, true
+		}
+	}
+
+	return "", false
+}
+
 func main() {
 
 	err := ensureDotFiles()
@@ -172,6 +187,9 @@ func main() {
 
 	flag.BoolVar(&names, "names", false, "Prints available marker names")
 	flag.BoolVar(&names, "n", false, "Prints available marker names")
+
+	flag.BoolVar(&current, "current", false, "Prints marker name for the current directory if it exists")
+	flag.BoolVar(&current, "c", false, "Prints marker name for the current directory if it exists")
 	flag.StringVar(&sortOption, "sort", "alpha", "Sort order for --list: alpha or usage")
 	flag.Parse()
 
@@ -182,7 +200,7 @@ func main() {
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			if !names && !adding {
+			if !names && !adding && !current {
 				fmt.Println("No markers exist! Add one with the -a flag!")
 				os.Exit(1)
 			}
@@ -197,6 +215,16 @@ func main() {
 		for _, key := range sortedKeys {
 			fmt.Println(key)
 		}
+		os.Exit(0)
+	}
+
+	if current {
+		dir, _ := os.Getwd()
+		if markerName, ok := markerForPath(markers, dir); ok {
+			fmt.Println(markerName)
+			os.Exit(0)
+		}
+		fmt.Println("no marker at location")
 		os.Exit(0)
 	}
 
