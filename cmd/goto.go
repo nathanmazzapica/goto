@@ -219,7 +219,11 @@ func main() {
 	}
 
 	if current {
-		dir, _ := os.Getwd()
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Printf("error determining current directory: %v\n", err)
+			os.Exit(1)
+		}
 		if markerName, ok := markerForPath(markers, dir); ok {
 			fmt.Println(markerName)
 			os.Exit(0)
