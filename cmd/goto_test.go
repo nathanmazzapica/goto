@@ -503,3 +503,41 @@ func TestCurrentPrintsNoMarkerMessageWhenNoMarkerAtDirectory(t *testing.T) {
 		t.Fatalf("unexpected output. expected %q got %q", "no marker at location\n", out)
 	}
 }
+
+func TestMarkerForPathFindsMatchingMarker(t *testing.T) {
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha"},
+		"beta":  {Path: "/path/beta"},
+	}
+
+	got, ok := markerForPath(markers, "/path/beta")
+	if !ok {
+		t.Fatalf("expected marker to be found")
+	}
+	if got != "beta" {
+		t.Fatalf("expected marker name %q, got %q", "beta", got)
+	}
+}
+
+func TestMarkerForPathSkipsRecallMarker(t *testing.T) {
+	markers := marker.MarkerMap{
+		recallMarkerName: {Path: "/current"},
+		"alpha":          {Path: "/alpha"},
+	}
+
+	_, ok := markerForPath(markers, "/current")
+	if ok {
+		t.Fatalf("expected recall marker to be skipped")
+	}
+}
+
+func TestMarkerForPathReturnsFalseWhenNoMatch(t *testing.T) {
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha"},
+	}
+
+	_, ok := markerForPath(markers, "/missing")
+	if ok {
+		t.Fatalf("expected no marker to be found")
+	}
+}
