@@ -146,12 +146,12 @@ func sortKeysUsage(m marker.MarkerMap) []string {
 }
 
 func markerForPath(markers marker.MarkerMap, path string) (string, bool) {
-	for _, name := range sortKeysAlpha(markers) {
+	for name, markerValue := range markers {
 		if name == recallMarkerName {
 			continue
 		}
 
-		if markers[name].Path == path {
+		if markerValue.Path == path {
 			return name, true
 		}
 	}
