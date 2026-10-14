@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+
+	"golang.org/x/term"
 
 	"github.com/nathanmazzapica/goto/internal/marker"
 	"github.com/nathanmazzapica/goto/internal/ui"
@@ -19,25 +22,23 @@ var recall bool
 
 var printing bool
 var names bool
+var sortOption string
+var listFormat string
+var listWidth int
 
 const recallMarkerName = "previous"
 
-func setRecall(markers map[string]string) error {
+func setRecall(markers marker.MarkerMap) error {
 	curDir, _ := os.Getwd()
 
-	// Errors are ignored here because it is okay if previous marker doesn't exist.
-	// We'll just make it in the marker.Add() call below
-	_ = marker.Delete(recallMarkerName, markers)
-
-	// Error is discarded here because the marker is guarunteed to not already exist
-	// by the previous call to marker.Delete()
-	markers, _ = marker.Add(recallMarkerName, curDir, markers)
-
-	err := marker.SaveMarkers(markers)
-	if err != nil {
-		return err
+	existingUsage := 0
+	if recallMarker, ok := markers[recallMarkerName]; ok {
+		existingUsage = recallMarker.Usage
 	}
-	return nil
+
+	markers[recallMarkerName] = marker.Marker{Path: curDir, Usage: existingUsage}
+
+	return marker.SaveMarkers(markers)
 }
 
 func ensureDotFiles() error {
@@ -108,12 +109,43 @@ func migrateOldMarkers(oldPath, newPath string) error {
 	return nil
 }
 
-func sortKeys(m map[string]string) []string {
+func incrementUsage(name string, markers marker.MarkerMap) {
+	if name == recallMarkerName {
+		return
+	}
+
+	if m, ok := markers[name]; ok {
+		m.Usage++
+		markers[name] = m
+	}
+}
+
+func sortKeysAlpha(m marker.MarkerMap) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	return keys
+}
+
+func sortKeysUsage(m marker.MarkerMap) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		left := m[keys[i]]
+		right := m[keys[j]]
+
+		if left.Usage == right.Usage {
+			return keys[i] < keys[j]
+		}
+
+		return left.Usage > right.Usage
+	})
+
 	return keys
 }
 
@@ -145,11 +177,14 @@ func main() {
 
 	flag.BoolVar(&names, "names", false, "Prints available marker names")
 	flag.BoolVar(&names, "n", false, "Prints available marker names")
+	flag.StringVar(&sortOption, "sort", "alpha", "Sort order for --list: alpha or usage")
+	flag.StringVar(&listFormat, "list-format", "auto", "Format for --list: auto, box, or plain")
+	flag.IntVar(&listWidth, "width", 0, "Override terminal width for --list (columns)")
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
 	if markers == nil {
-		markers = make(map[string]string)
+		markers = make(marker.MarkerMap)
 	}
 
 	if err != nil {
@@ -165,7 +200,7 @@ func main() {
 	}
 
 	if names {
-		sortedKeys := sortKeys(markers)
+		sortedKeys := sortKeysUsage(markers)
 		for _, key := range sortedKeys {
 			fmt.Println(key)
 		}
@@ -175,12 +210,52 @@ func main() {
 	target := os.Args[len(os.Args)-1]
 
 	if listing {
+		if sortOption != "alpha" && sortOption != "usage" {
+			fmt.Printf("invalid sort option: %s\n", sortOption)
+			os.Exit(1)
+		}
+
+		if listFormat != "auto" && listFormat != "box" && listFormat != "plain" {
+			fmt.Printf("invalid list format: %s\n", listFormat)
+			os.Exit(1)
+		}
+
 		if len(markers) == 0 {
 			fmt.Println("No markers exist! Add one with the -a flag!")
 			os.Exit(0)
 		}
 
-		fmt.Print(ui.FormatListing(markers))
+		keys := sortKeysAlpha(markers)
+		if sortOption == "usage" {
+			keys = sortKeysUsage(markers)
+		}
+
+		isTTY := term.IsTerminal(int(os.Stdout.Fd()))
+		format := ui.ListingFormat(listFormat)
+		if listFormat == "auto" {
+			if isTTY {
+				format = ui.ListingFormatBox
+			} else {
+				format = ui.ListingFormatPlain
+			}
+		}
+
+		maxWidth := 0
+		if format == ui.ListingFormatBox {
+			if listWidth > 0 {
+				maxWidth = listWidth
+			} else if isTTY {
+				if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 {
+					maxWidth = w
+				} else {
+					maxWidth = fallbackWidth()
+				}
+			} else {
+				maxWidth = fallbackWidth()
+			}
+		}
+
+		fmt.Print(ui.FormatListing(markers, keys, ui.ListingOptions{Format: format, MaxWidth: maxWidth}))
 		os.Exit(0)
 	}
 
@@ -222,7 +297,7 @@ func main() {
 
 	if recall {
 		if t, ok := markers[recallMarkerName]; ok {
-			destDir := t
+			destDir := t.Path
 			err := setRecall(markers)
 			if err != nil {
 				fmt.Println("error updating recall dest:", err)
@@ -231,12 +306,14 @@ func main() {
 			fmt.Println(destDir)
 			os.Exit(0)
 		}
+
 		fmt.Println("No recall position")
 		os.Exit(1)
 	}
 
 	if t, ok := markers[target]; ok {
-		destDir := t
+		destDir := t.Path
+		incrementUsage(target, markers)
 		err := setRecall(markers)
 		if err != nil {
 			fmt.Println("error updating recall dest:", err)
@@ -248,4 +325,13 @@ func main() {
 
 	fmt.Printf("Marker <%s> does not exist!\nUse tp -l to list available markers\n", target)
 	os.Exit(1)
+}
+
+func fallbackWidth() int {
+	if columns := os.Getenv("COLUMNS"); columns != "" {
+		if value, err := strconv.Atoi(columns); err == nil && value > 0 {
+			return value
+		}
+	}
+	return 80
 }

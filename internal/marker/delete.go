@@ -6,8 +6,7 @@ var (
 	ErrDoesntExist = fmt.Errorf("marker does not exist")
 )
 
-func Delete(key string, markers map[string]string) error {
-
+func Delete(key string, markers MarkerMap) error {
 	if _, ok := markers[key]; !ok {
 		return ErrDoesntExist
 	}

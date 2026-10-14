@@ -92,10 +92,17 @@ source ~/.bashrc
 | `tp --add <name>` or `-a`     | Adds a marker <name> for the current dir   |
 | `tp <name>`                   | Teleports to the saved directory pointed to by marker <name>    |
 | `tp --list` or `-l`           | Lists all saved markers             |
+| `tp --list --list-format box` | Sets list output to `auto`, `box`, or `plain` |
+| `tp --list --width 80`        | Overrides terminal width for boxed list output |
 | `tp --delete <name>` or `-d`  | Deletes the saved marker            |
 | `tp --recall` or `-r`         | Returns to the previous directory            |
 | `tp --print <name>` or `-p`          | Outputs the directory pointed to by <name>|
 | `tp --names` or `-n`          | Outputs saved marker names (one per line) |
+
+List output defaults to `auto`: a boxed table in a terminal, or tab-separated
+marker, usage, and destination rows when piped. Put `--list` first when using
+these options through `tp`. Boxed output fits the terminal width by hiding the
+usage column and shortening long names or paths as needed.
 
 ### Zsh completion
 
