@@ -13,6 +13,7 @@ _tp() {
 		'(-r --recall)'{-r,--recall}'[Return to previous directory]' \
 		'(-p --print)'{-p,--print}'[Print marker destination]:marker name:->markers' \
 		'(-n --names)'{-n,--names}'[List marker names]' \
+		'(-c --check)'{-c,--check}'[Print marker names for the current directory]' \
 		'*:marker name:->markers' && return 0
 
 	case $state in
@@ -24,5 +25,4 @@ _tp() {
 		;;
 	esac
 }
-
 

@@ -61,7 +61,7 @@ function tp() {
             dir=$(goto $2)
             echo $dir
             ;;
-        -n|--names)
+        -n|--names|-c|--check)
             goto $@
             ;;
         -r|--recall|*)
@@ -98,11 +98,19 @@ source ~/.bashrc
 | `tp --recall` or `-r`         | Returns to the previous directory            |
 | `tp --print <name>` or `-p`          | Outputs the directory pointed to by <name>|
 | `tp --names` or `-n`          | Outputs saved marker names (one per line) |
+| `tp --check` or `-c`          | Prints marker names for the current directory |
 
 List output defaults to `auto`: a boxed table in a terminal, or tab-separated
 marker, usage, and destination rows when piped. Put `--list` first when using
 these options through `tp`. Boxed output fits the terminal width by hiding the
 usage column and shortening long names or paths as needed.
+
+Use `goto --check` (or `tp --check` with the updated shell function above) to
+look up the current directory. It prints matching marker names in alphabetical
+order, one per line, and exits with status 0. If none match, it prints nothing
+and exits with status 1. The reserved `previous` marker is excluded. Symlink
+aliases of the same directory also match. Checking does not navigate or change
+usage counts or the recall position.
 
 ### Zsh completion
 
