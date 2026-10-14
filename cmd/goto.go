@@ -22,6 +22,7 @@ var recall bool
 
 var printing bool
 var names bool
+var checking bool
 var sortOption string
 var listFormat string
 var listWidth int
@@ -177,6 +178,8 @@ func main() {
 
 	flag.BoolVar(&names, "names", false, "Prints available marker names")
 	flag.BoolVar(&names, "n", false, "Prints available marker names")
+	flag.BoolVar(&checking, "check", false, "Prints marker names for the current directory")
+	flag.BoolVar(&checking, "c", false, "Prints marker names for the current directory")
 	flag.StringVar(&sortOption, "sort", "alpha", "Sort order for --list: alpha or usage")
 	flag.StringVar(&listFormat, "list-format", "auto", "Format for --list: auto, box, or plain")
 	flag.IntVar(&listWidth, "width", 0, "Override terminal width for --list (columns)")
@@ -189,14 +192,47 @@ func main() {
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			if !names && !adding {
+			if !names && !adding && !checking {
 				fmt.Println("No markers exist! Add one with the -a flag!")
 				os.Exit(1)
 			}
 		} else {
-			fmt.Printf("Error loading markers: %v\n", err)
+			if checking {
+				fmt.Fprintf(os.Stderr, "Error loading markers: %v\n", err)
+			} else {
+				fmt.Printf("Error loading markers: %v\n", err)
+			}
 			os.Exit(1)
 		}
+	}
+
+	if checking {
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+			os.Exit(1)
+		}
+		currentInfo, err := os.Stat(dir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading current directory: %v\n", err)
+			os.Exit(1)
+		}
+		found := false
+		for _, key := range sortKeysAlpha(markers) {
+			if key == recallMarkerName {
+				continue
+			}
+			// Compare directory identity so symlink aliases match too.
+			info, err := os.Stat(markers[key].Path)
+			if err == nil && os.SameFile(currentInfo, info) {
+				fmt.Println(key)
+				found = true
+			}
+		}
+		if !found {
+			os.Exit(1)
+		}
+		return
 	}
 
 	if names {

@@ -307,6 +307,92 @@ func runGoto(t *testing.T, binaryPath, home string, args ...string) (string, err
 	return string(out), err
 }
 
+func TestCheckFlag(t *testing.T) {
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	for _, flag := range []string{"--check", "-c"} {
+		for _, scenario := range []string{"match", "multiple", "no match", "empty", "previous only", "symlink", "malformed"} {
+			t.Run(flag+"/"+scenario, func(t *testing.T) {
+				home := t.TempDir()
+				dir := filepath.Join(home, "current directory")
+				child := filepath.Join(dir, "child")
+				if err := os.MkdirAll(child, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				configDir := filepath.Join(home, ".config", "goto")
+				if err := os.MkdirAll(configDir, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				data, want := "", ""
+				wantExit := 0
+				switch scenario {
+				case "match":
+					data = "my 项目:" + dir + ":7\nprevious:" + home + ":0"
+					want = "my 项目\n"
+				case "multiple":
+					data = "zeta:" + dir + ":99\nalpha:" + dir + ":1\nprevious:" + dir + ":0"
+					want = "alpha\nzeta\n"
+				case "no match":
+					data = "parent:" + home + ":1\nchild:" + child + ":2\nmissing:" + filepath.Join(home, "missing") + ":3"
+					wantExit = 1
+				case "empty":
+					wantExit = 1
+				case "previous only":
+					data = "previous:" + dir + ":0"
+					wantExit = 1
+				case "symlink":
+					alias := filepath.Join(home, "alias")
+					if err := os.Symlink(dir, alias); err != nil {
+						t.Skipf("symlink unavailable: %v", err)
+					}
+					data = "linked:" + alias + ":5"
+					want = "linked\n"
+				case "malformed":
+					data = "broken entry"
+					wantExit = 1
+				}
+				markerPath := filepath.Join(configDir, ".markers")
+				if err := os.WriteFile(markerPath, []byte(data), 0o600); err != nil {
+					t.Fatal(err)
+				}
+
+				cmd := exec.Command(binaryPath, flag)
+				cmd.Dir = dir
+				cmd.Env = setEnv(os.Environ(), "HOME", home)
+				var stderr strings.Builder
+				cmd.Stderr = &stderr
+				out, err := cmd.Output()
+				if err != nil {
+					if _, ok := err.(*exec.ExitError); !ok {
+						t.Fatal(err)
+					}
+				}
+				if got := cmd.ProcessState.ExitCode(); got != wantExit {
+					t.Fatalf("exit = %d, want %d; stderr: %s", got, wantExit, stderr.String())
+				}
+				if string(out) != want {
+					t.Errorf("stdout = %q, want %q", out, want)
+				}
+				if scenario == "malformed" {
+					if !strings.Contains(stderr.String(), "Error loading markers") {
+						t.Errorf("expected load error on stderr, got %q", stderr.String())
+					}
+				} else if stderr.Len() != 0 {
+					t.Errorf("unexpected stderr: %s", stderr.String())
+				}
+				after, err := os.ReadFile(markerPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(after) != data {
+					t.Errorf("check changed marker data: %q", after)
+				}
+			})
+		}
+	}
+}
+
 func TestNamesFlagPrintsSortedMarkersIncludingSpecials(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
