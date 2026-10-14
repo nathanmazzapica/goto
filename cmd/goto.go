@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+
+	"golang.org/x/term"
 
 	"github.com/nathanmazzapica/goto/internal/marker"
 	"github.com/nathanmazzapica/goto/internal/ui"
@@ -20,6 +23,8 @@ var recall bool
 var printing bool
 var names bool
 var sortOption string
+var listFormat string
+var listWidth int
 
 const recallMarkerName = "previous"
 
@@ -173,6 +178,8 @@ func main() {
 	flag.BoolVar(&names, "names", false, "Prints available marker names")
 	flag.BoolVar(&names, "n", false, "Prints available marker names")
 	flag.StringVar(&sortOption, "sort", "alpha", "Sort order for --list: alpha or usage")
+	flag.StringVar(&listFormat, "list-format", "auto", "Format for --list: auto, box, or plain")
+	flag.IntVar(&listWidth, "width", 0, "Override terminal width for --list (columns)")
 	flag.Parse()
 
 	markers, err := marker.LoadMarkers()
@@ -208,6 +215,11 @@ func main() {
 			os.Exit(1)
 		}
 
+		if listFormat != "auto" && listFormat != "box" && listFormat != "plain" {
+			fmt.Printf("invalid list format: %s\n", listFormat)
+			os.Exit(1)
+		}
+
 		if len(markers) == 0 {
 			fmt.Println("No markers exist! Add one with the -a flag!")
 			os.Exit(0)
@@ -218,7 +230,32 @@ func main() {
 			keys = sortKeysUsage(markers)
 		}
 
-		fmt.Print(ui.FormatListing(markers, keys))
+		isTTY := term.IsTerminal(int(os.Stdout.Fd()))
+		format := ui.ListingFormat(listFormat)
+		if listFormat == "auto" {
+			if isTTY {
+				format = ui.ListingFormatBox
+			} else {
+				format = ui.ListingFormatPlain
+			}
+		}
+
+		maxWidth := 0
+		if format == ui.ListingFormatBox {
+			if listWidth > 0 {
+				maxWidth = listWidth
+			} else if isTTY {
+				if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 {
+					maxWidth = w
+				} else {
+					maxWidth = fallbackWidth()
+				}
+			} else {
+				maxWidth = fallbackWidth()
+			}
+		}
+
+		fmt.Print(ui.FormatListing(markers, keys, ui.ListingOptions{Format: format, MaxWidth: maxWidth}))
 		os.Exit(0)
 	}
 
@@ -288,4 +325,13 @@ func main() {
 
 	fmt.Printf("Marker <%s> does not exist!\nUse tp -l to list available markers\n", target)
 	os.Exit(1)
+}
+
+func fallbackWidth() int {
+	if columns := os.Getenv("COLUMNS"); columns != "" {
+		if value, err := strconv.Atoi(columns); err == nil && value > 0 {
+			return value
+		}
+	}
+	return 80
 }

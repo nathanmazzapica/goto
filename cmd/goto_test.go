@@ -261,6 +261,24 @@ func buildGotoBinary(t *testing.T) (string, func()) {
 	tmpDir := t.TempDir()
 	binaryPath := filepath.Join(tmpDir, "goto-test-bin")
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./goto.go")
+	modCache := os.Getenv("GOMODCACHE")
+	if modCache == "" {
+		modCache = filepath.Join(os.TempDir(), "goto-gomodcache")
+	}
+	goCache := os.Getenv("GOCACHE")
+	if goCache == "" {
+		goCache = filepath.Join(os.TempDir(), "goto-gocache")
+	}
+	if err := os.MkdirAll(modCache, 0o755); err != nil {
+		t.Fatalf("failed to create module cache dir: %v", err)
+	}
+	if err := os.MkdirAll(goCache, 0o755); err != nil {
+		t.Fatalf("failed to create go cache dir: %v", err)
+	}
+	env := os.Environ()
+	env = setEnv(env, "GOMODCACHE", modCache)
+	env = setEnv(env, "GOCACHE", goCache)
+	cmd.Env = env
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build goto binary: %v, output: %s", err, string(out))
 	}
@@ -268,6 +286,17 @@ func buildGotoBinary(t *testing.T) (string, func()) {
 		_ = os.Remove(binaryPath)
 	}
 	return binaryPath, cleanup
+}
+
+func setEnv(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 func runGoto(t *testing.T, binaryPath, home string, args ...string) (string, error) {
@@ -336,13 +365,13 @@ func TestListOutputsBoxDrawingWithWidths(t *testing.T) {
 	}
 	writeMarkers(t, home, markers)
 
-	out, err := runGoto(t, binaryPath, home, "--list")
+	out, err := runGoto(t, binaryPath, home, "--list", "--list-format", "box", "--width", "200")
 	if err != nil {
 		t.Fatalf("goto --list failed: %v, output: %s", err, out)
 	}
 
 	keys := sortKeysAlphaTest(markers)
-	expected := ui.FormatListing(markers, keys)
+	expected := ui.FormatListing(markers, keys, ui.ListingOptions{Format: ui.ListingFormatBox, MaxWidth: 200})
 
 	if out != expected {
 		t.Fatalf("unexpected list output.\nexpected:\n%q\ngot:\n%q", expected, out)
@@ -380,16 +409,115 @@ func TestListSortUsageOrdersByUsage(t *testing.T) {
 	}
 	writeMarkers(t, home, markers)
 
-	out, err := runGoto(t, binaryPath, home, "--list", "--sort", "usage")
+	out, err := runGoto(t, binaryPath, home, "--list", "--sort", "usage", "--list-format", "box", "--width", "200")
 	if err != nil {
 		t.Fatalf("goto --list --sort usage failed: %v, output: %s", err, out)
 	}
 
 	keys := sortKeysUsageTest(markers)
-	expected := ui.FormatListing(markers, keys)
+	expected := ui.FormatListing(markers, keys, ui.ListingOptions{Format: ui.ListingFormatBox, MaxWidth: 200})
 
 	if out != expected {
 		t.Fatalf("unexpected usage-sorted list output.\nexpected:\n%q\ngot:\n%q", expected, out)
+	}
+}
+
+func TestListDefaultsToPlainWhenNotTTY(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/path/alpha", Usage: 1},
+		"beta":  {Path: "/path/beta", Usage: 2},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "--list")
+	if err != nil {
+		t.Fatalf("goto --list failed: %v, output: %s", err, out)
+	}
+
+	keys := sortKeysAlphaTest(markers)
+	expected := ui.FormatListing(markers, keys, ui.ListingOptions{Format: ui.ListingFormatPlain})
+	if out != expected {
+		t.Fatalf("unexpected plain list output.\nexpected:\n%q\ngot:\n%q", expected, out)
+	}
+}
+
+func TestListBoxDropsUsageWhenNarrow(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	markers := marker.MarkerMap{
+		"alpha": {Path: "/a/short/path", Usage: 12},
+		"beta":  {Path: "/another/short/path", Usage: 4},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "--list", "--list-format", "box", "--width", "26")
+	if err != nil {
+		t.Fatalf("goto --list --list-format box failed: %v, output: %s", err, out)
+	}
+
+	if strings.Contains(out, "USAGE") {
+		t.Fatalf("expected usage column to be dropped, got output: %q", out)
+	}
+	if !strings.Contains(out, "┌") {
+		t.Fatalf("expected box output, got: %q", out)
+	}
+}
+
+func TestListBoxTruncatesDestinationKeepsTail(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	longPath := "/very/long/path/to/project"
+	markers := marker.MarkerMap{
+		"mark": {Path: longPath, Usage: 1},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "--list", "--list-format", "box", "--width", "26")
+	if err != nil {
+		t.Fatalf("goto --list --list-format box failed: %v, output: %s", err, out)
+	}
+
+	if strings.Contains(out, longPath) {
+		t.Fatalf("expected destination to be truncated, got output: %q", out)
+	}
+	if !strings.Contains(out, "…") || !strings.Contains(out, "project") {
+		t.Fatalf("expected destination tail to be preserved, got output: %q", out)
+	}
+}
+
+func TestListBoxTruncatesMarkerIfNeeded(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	binaryPath, cleanup := buildGotoBinary(t)
+	t.Cleanup(cleanup)
+
+	longName := "veryverylongmarkername"
+	markers := marker.MarkerMap{
+		longName: {Path: "/short", Usage: 1},
+	}
+	writeMarkers(t, home, markers)
+
+	out, err := runGoto(t, binaryPath, home, "--list", "--list-format", "box", "--width", "22")
+	if err != nil {
+		t.Fatalf("goto --list --list-format box failed: %v, output: %s", err, out)
+	}
+
+	if strings.Contains(out, longName) {
+		t.Fatalf("expected marker to be truncated, got output: %q", out)
+	}
+	if !strings.Contains(out, "veryverylongm…") {
+		t.Fatalf("expected marker head to be preserved with ellipsis, got output: %q", out)
 	}
 }
 
